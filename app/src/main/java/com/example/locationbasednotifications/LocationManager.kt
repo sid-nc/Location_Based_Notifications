@@ -103,7 +103,7 @@ class LocationSamplingManager @Inject constructor(
     private val fusedClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
 ) {
-
+    private var hasCheckedTransitForThisStop = false
     private val placesClient: PlacesClient? =
         PlacesInitializer.init(context)
 
@@ -134,9 +134,21 @@ class LocationSamplingManager @Inject constructor(
                 locationSamples.removeAt(0)
             }
 
-            if (isUserStationary(locationSamples)) {
+            val stationary = isUserStationary(locationSamples)
+            if (stationary && !hasCheckedTransitForThisStop) {
+                hasCheckedTransitForThisStop = true
                 searchNearbyTransit(location)
             }
+
+            if (!stationary) {
+                // User moved again → reset for next stop
+                hasCheckedTransitForThisStop = false
+            }
+
+            Log.d(
+                "TransitDebug",
+                "stationary=$stationary, checked=$hasCheckedTransitForThisStop"
+            )
         }
     }
 
@@ -173,6 +185,21 @@ class LocationSamplingManager @Inject constructor(
 
         client.searchNearby(request)
             .addOnSuccessListener { response ->
+
+                Log.d("PlacesDebug", "Total places found: ${response.places.size}")
+
+                response.places.forEachIndexed { index, place ->
+                    Log.d(
+                        "PlacesDebug",
+                        """
+                Place #$index
+                id = ${place.id}
+                name = ${place.displayName}
+                types = ${place.placeTypes}
+                """.trimIndent()
+                    )
+                }
+
                 val isTransit = response.places.any { place ->
                     place.placeTypes?.any { it in TRANSIT_TYPES } == true
                 }
