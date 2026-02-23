@@ -200,11 +200,17 @@ class LocationSamplingManager @Inject constructor(
                     )
                 }
 
-                val isTransit = response.places.any { place ->
-                    place.placeTypes?.any { it in TRANSIT_TYPES } == true
+                val transitPlace = response.places.firstOrNull{ place ->
+                    place.placeTypes?.any { it in TRANSIT_TYPES } == true &&
+                            !place.displayName.isNullOrBlank()
                 }
 
-                Log.d("TransitCheck", "Is transit location: $isTransit")
+                if (transitPlace != null) {
+                    val placeName = transitPlace.displayName
+                    Log.d("TransitCheck", "You are at $placeName")
+                } else {
+                    Log.d("TransitCheck", "No nearby transit location found")
+                }
             }
             .addOnFailureListener {
                 Log.e("TransitCheck", "Places search failed", it)
@@ -262,7 +268,7 @@ class LocationSamplingManager @Inject constructor(
 
 fun isUserStationary(
     samples: List<LocationSample>,
-    maxDistanceMeters: Float = 50f,
+    maxDistanceMeters: Float = 100f,
     minDurationMillis: Long = 1 * 60 * 1000L
 ): Boolean {
 
